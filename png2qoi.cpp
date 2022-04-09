@@ -1,11 +1,9 @@
 #include <fstream>
 #include <iostream>
 #include <string.h>
-#include <bitset>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
-#define STBI_NO_LINEAR
 #include "stb_image.h"
 
 #define QOI_RGBA   0xff /* 11111111 */
@@ -15,7 +13,7 @@
 #define QOI_DIFF   0x40 /* 01xxxxxx */
 #define QOI_INDEX  0x00 /* 00xxxxxx */
 
-#define COLOR_HASH(C) (C.r*3 + C.g*5 + C.b*7 + C.a*11)
+#define COLOR_HASH(C) ((C.r*3 + C.g*5 + C.b*7 + C.a*11) % 64)
 
 struct Pixel {
     Pixel() : r(0), g(0), b(0), a(255) {}
@@ -31,23 +29,16 @@ struct Pixel {
     }
 };
 
-void write32(unsigned char* data, int &idx, const int &v) {
-    data[idx++] = v >> 24;
-    data[idx++] = (v & 0x00ffffff) >> 16;
-    data[idx++] = (v & 0x0000ffff) >> 8;
-    data[idx++] = (v & 0x000000ff);
-}
-
-void printData(unsigned char* data, int size, int offset=0) {
-    for(int i = offset; i < size; i++) {
-        std::cout << (int)data[i] << "\t";
-    }
-    std::cout << std::endl;        
+void write32(unsigned char* data, int &pos, const int &v) {
+    data[pos++] = v >> 24;
+    data[pos++] = (v & 0x00ffffff) >> 16;
+    data[pos++] = (v & 0x0000ffff) >> 8;
+    data[pos++] = (v & 0x000000ff);
 }
 
 int main(int argc, char** argv) {
     if(!argv[1]) {
-        std::cout << "usage: ali <filename>" << std::endl;
+        std::cout << "usage: p2q <filename>" << std::endl;
         return 1;
     }
     int x,y,n, idx=0;
@@ -94,8 +85,8 @@ int main(int argc, char** argv) {
             }
             //calculate difference
             char dr = currPx.r - prevPx.r, dg = currPx.g - prevPx.g, db = currPx.b - prevPx.b;
-            if(table[COLOR_HASH(currPx)%64] && *table[COLOR_HASH(currPx)%64] == currPx) {
-                qoi[idx++] = QOI_INDEX | (COLOR_HASH(currPx)%64);
+            if(table[COLOR_HASH(currPx)] && *table[COLOR_HASH(currPx)] == currPx) {
+                qoi[idx++] = QOI_INDEX | (COLOR_HASH(currPx));
                 prevPx = currPx;
             }
             //RGBA
@@ -106,13 +97,13 @@ int main(int argc, char** argv) {
                 qoi[idx++] = currPx.b;
                 qoi[idx++] = currPx.a;
                 prevPx = currPx;
-                table[COLOR_HASH(currPx)%64] = new Pixel(currPx);
+                table[COLOR_HASH(currPx)] = new Pixel(currPx);
             }
             //DIFF
             else if(dr < 2 & dg < 2 & db < 2 & dr > -3 & dg > -3 & db > -3) {
                 qoi[idx++] = QOI_DIFF | (dr+2) << 4 | (dg+2) << 2 | (db+2);
                 prevPx = currPx;
-                table[COLOR_HASH(currPx)%64] = new Pixel(currPx);
+                table[COLOR_HASH(currPx)] = new Pixel(currPx);
             }
             //LUMA
             else if (dg < 32 && dg > -33 && dr-dg < 8 && db-dg < 8 && dr-dg > -9 && db-dg > -9)
@@ -120,7 +111,7 @@ int main(int argc, char** argv) {
                 qoi[idx++] = QOI_LUMA | (dg+32);
                 qoi[idx++] = ((dr-dg+8) << 4) | (db-dg+8);
                 prevPx = currPx;
-                table[COLOR_HASH(currPx)%64] = new Pixel(currPx);
+                table[COLOR_HASH(currPx)] = new Pixel(currPx);
             }
             
             //RGB
@@ -130,7 +121,7 @@ int main(int argc, char** argv) {
                 qoi[idx++] = currPx.g;
                 qoi[idx++] = currPx.b;
                 prevPx = currPx;
-                table[COLOR_HASH(currPx)%64] = new Pixel(currPx);
+                table[COLOR_HASH(currPx)] = new Pixel(currPx);
             }
         }
     }
