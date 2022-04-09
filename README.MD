@@ -1,7 +1,7 @@
-# QOI: Simple file format for fast & lossless images
+# The Quite OK Image Format for Fast, Lossless Compression
 https://qoiformat.org/
 
-## Methods to reduce file size
+## Methods
 
 ### 1.Indexing
 QOI uses a 64 pixel running array of previous pixels, if a pixel is already in the array we can store the pixel in 1 byte using index.
